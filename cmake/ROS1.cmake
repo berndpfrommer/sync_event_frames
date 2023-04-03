@@ -35,34 +35,6 @@ catkin_package()
 include_directories(
   include
   ${catkin_INCLUDE_DIRS})
-#
-# --------- library
-#
-add_library(approx_reconstruction
-  src/approx_reconstruction_ros1.cpp)
-
-target_include_directories(
-    approx_reconstruction
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
-
-set(ALL_LIBS simple_image_recon_lib::simple_image_recon_lib ${catkin_LIBRARIES})
-
-# need to link this target separately or else it won't find the header files
-target_link_libraries(approx_reconstruction ${ALL_LIBS})
-
-#
-# --------- nodelet
-#
-#add_library(approx_reconstruction_nodelet src/nodelet.cpp)
-#target_link_libraries(approx_reconstruction_nodelet approx_reconstruction ${ALL_LIBS})
-
-#
-# -------- node
-#
-#add_executable(approx_reconstruction_node src/node_ros1.cpp)
-#target_link_libraries(approx_reconstruction_node approx_reconstruction ${ALL_LIBS})
 
 #
 # -------- bag_to_frames
@@ -70,33 +42,12 @@ target_link_libraries(approx_reconstruction ${ALL_LIBS})
 
 add_executable(bag_to_frames src/bag_to_frames_ros1.cpp)
 target_include_directories(bag_to_frames PUBLIC include)
-target_link_libraries(bag_to_frames approx_reconstruction ${ALL_LIBS})
+target_link_libraries(bag_to_frames ${ALL_LIBS})
 
 
 # the node must go into the paroject specific lib directory or else
 # the launch file will not find it
 
 install(TARGETS
-#  approx_reconstruction_node
   bag_to_frames
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-
-# the shared library goes into the global lib dir so it can
-# be used as a composable node by other projects
-
-install(TARGETS
-  approx_reconstruction
-  DESTINATION lib
-)
-install(TARGETS approx_reconstruction
-  # approx_reconstruction_nodelet
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION})
-
-install(FILES nodelet_plugins.xml
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
-
-install(DIRECTORY launch
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-  FILES_MATCHING PATTERN "*.launch")

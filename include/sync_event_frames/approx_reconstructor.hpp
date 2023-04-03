@@ -148,6 +148,11 @@ public:
     }
   }
 
+  bool hasValidSensorTimeOffset() const { return (timeOffset_.isValid()); }
+
+  // returns  t_ros - t_sensor in nanoseconds
+  int64_t getSensorTimeOffset() const { return (timeOffset_.getOffset()); }
+
 private:
   void updateROSTimeOffset(uint64_t tros, uint64_t tsens)
   {

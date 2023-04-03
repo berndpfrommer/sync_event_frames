@@ -41,6 +41,7 @@ public:
     }
   }
   int64_t getOffset() const { return static_cast<int64_t>(avgDt_); }
+  bool isValid() const { return (!firstTime_); }
 
 private:
   double avgDt_{0};

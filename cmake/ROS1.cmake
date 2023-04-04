@@ -23,18 +23,18 @@ find_package(simple_image_recon_lib)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
-  nodelet
   rosbag
   event_array_msgs
   event_array_codecs
-  sensor_msgs
-  image_transport)
+  sensor_msgs)
 
 catkin_package()
 
 include_directories(
   include
   ${catkin_INCLUDE_DIRS})
+
+set(ALL_LIBS simple_image_recon_lib::simple_image_recon_lib ${catkin_LIBRARIES})
 
 #
 # -------- bag_to_frames

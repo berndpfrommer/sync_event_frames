@@ -23,6 +23,7 @@
 #include <unistd.h>
 
 #include <memory>
+#include <unordered_map>
 
 #include "sync_event_frames/approx_reconstructor.hpp"
 #include "sync_event_frames/frame_handler.hpp"
@@ -30,9 +31,6 @@
 using event_array_msgs::EventArray;
 using sensor_msgs::CompressedImage;
 using sensor_msgs::Image;
-
-using ApproxRecon = sync_event_frames::ApproxReconstructor<
-  EventArray, EventArray::ConstPtr, Image, Image::ConstPtr, ros::Time>;
 
 void usage()
 {
@@ -67,7 +65,8 @@ private:
   size_t numFrames_{0};
 };
 
-using sync_event_frames::ApproxReconstructor;
+using ApproxRecon = sync_event_frames::ApproxReconstructor<
+  EventArray, EventArray::ConstPtr, Image, Image::ConstPtr, ros::Time>;
 
 size_t processFreeRunning(
   double fps, rosbag::Bag & inBag, const std::vector<std::string> & inTopics,

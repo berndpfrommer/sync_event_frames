@@ -50,4 +50,4 @@ private:
   bool firstTime_{true};
 };
 }  // namespace sync_event_frames
-#endif  // TIME_OFFSET_HPP_
+#endif  // SYNC_EVENT_FRAMES__TIME_OFFSET_HPP_

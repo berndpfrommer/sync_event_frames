@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ROS_COMPAT_HPP_
-#define ROS_COMPAT_HPP_
+#ifndef SYNC_EVENT_FRAMES__ROS_COMPAT_HPP_
+#define SYNC_EVENT_FRAMES__ROS_COMPAT_HPP_
 
 #ifdef USING_ROS_1
 #include <ros/ros.h>
@@ -26,8 +26,16 @@ namespace ros_compat
 {
 #ifdef USING_ROS_1
 uint64_t to_nanoseconds(const ros::Time & t) { return (t.toNSec()); }
+ros::Duration duration_from_nanoseconds(uint64_t nsec)
+{
+  return (ros::Duration().fromNSec(nsec));
+}
 #else
-uint64_t to_nanoseconds(const rclcpp::Time & t) { return (t.to_nanoseconds()); }
+uint64_t to_nanoseconds(const rclcpp::Time & t) { return (t.nanoseconds()); }
+rclcpp::Duration duration_from_nanoseconds(uint64_t nsec)
+{
+  return (rclcpp::Duration::from_nanoseconds(nsec));
+}
 #endif
 }  // namespace ros_compat
-#endif  // ROS_COMPAT_HPP_
+#endif  // SYNC_EVENT_FRAMES__ROS_COMPAT_HPP_

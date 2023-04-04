@@ -25,7 +25,7 @@ Galactic. Continuous integration testing also for Ubuntu 22.04 under
 ROS2 Humble.
 
 ## How to build
-Create a workspace (``~/ws``), clone this repo, and use ``vcs`` tool
+Create a workspace, clone this repo, and use ``vcs`` tool
 ```
 pkg=event_sync_frames
 mkdir -p ~/${pkg}/src
@@ -53,12 +53,12 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo  #
 
 The ``bag_to_frames`` command takes a bag with event and synchronized frame camera messages as input and produces a bag with the original camera frames plus reconstructed event camera frames. Here is the comand usage (launch with ``rosrun`` or ``ros2 run``:
 ```
-bag_to_frames -i input_bag -o output_bag -t event_camera_input_topic [-T event_frame_output_topic] [-c frame_camera_input_topic] [-f fps]
+bag_to_frames -i input_bag -o output_bag -t event_camera_input_topic [-T event_frame_output_topic] [-c frame_camera_input_topic] [-f frame_rate]
 ```
 If you have multiple cameras, specify the respective flag multiple times, once for each camera.
 
 You can use this in two modes:
-1) free running. Use this mode if you don't have a frame based camera, but e.g. two event cameras that you want to calibrate intrinsically and extrinsically. This mode is activated by specifying the frame rate (``fps``). The output bag will contain reconstructed event frame images but no frame camera images as those are ignored.
+1) free running. Use this mode if you don't have a frame based camera, but e.g. two event cameras that you want to calibrate intrinsically and extrinsically. This mode is activated by specifying the frame rate (``-f``). The output bag will contain reconstructed event frame images but no frame camera images as those are ignored.
 2) frame camera driven. Here the event camera frames will be reconstructed such that they are synchronized with the frame camera time stamps. The frame camera images must be synchronized, i.e. the header stamp of the image messages *must* have identical time stamps across all frame cameras.
 
 If the output topics (``-T option``) are not specified they will become the events topic with ``/image_raw`` appended.
@@ -70,7 +70,7 @@ rosrun sync_event_frames bag_to_frames -i input.bag -o synced.bag -t /prophesee/
 
 The same in free running mode:
 ```
-rosrun sync_event_frames bag_to_frames -i input.bag -o synced.bag -fps 25.0 -t /prophesee/left/events -t /prophesee/right/events
+rosrun sync_event_frames bag_to_frames -i input.bag -o synced.bag -f 25.0 -t /prophesee/left/events -t /prophesee/right/events
 ```
 
 ## License

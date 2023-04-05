@@ -40,7 +40,7 @@ set(ALL_LIBS simple_image_recon_lib::simple_image_recon_lib ${catkin_LIBRARIES})
 # -------- bag_to_frames
 #
 
-add_executable(bag_to_frames src/bag_to_frames_ros1.cpp)
+add_executable(bag_to_frames src/bag_to_frames_main.cpp)
 target_include_directories(bag_to_frames PUBLIC include)
 target_link_libraries(bag_to_frames ${ALL_LIBS})
 

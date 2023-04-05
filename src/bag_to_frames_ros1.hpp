@@ -13,6 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef BAG_TO_FRAMES_ROS1_HPP_
+#define BAG_TO_FRAMES_ROS1_HPP_
+
 #include <event_array_codecs/decoder_factory.h>
 #include <event_array_msgs/EventArray.h>
 #include <ros/ros.h>
@@ -20,27 +23,17 @@
 #include <rosbag/view.h>
 #include <sensor_msgs/CompressedImage.h>
 #include <sensor_msgs/Image.h>
-#include <unistd.h>
 
 #include <memory>
 #include <unordered_map>
 
 #include "sync_event_frames/approx_reconstructor.hpp"
 #include "sync_event_frames/frame_handler.hpp"
+#include "sync_event_frames/utils.hpp"
 
 using event_array_msgs::EventArray;
 using sensor_msgs::CompressedImage;
 using sensor_msgs::Image;
-
-void usage()
-{
-  std::cout << "usage:" << std::endl;
-  std::cout << "bag_to_frames -i input_bag -o output_bag"
-               " -t event_camera_input_topic [-T event_frame_output_topic]"
-               " [-c frame_camera_input_topic] [-f fps]"
-               " [-C cutoff_period]"
-            << std::endl;
-}
 
 class OutBagWriter : public sync_event_frames::FrameHandler<Image::ConstPtr>
 {
@@ -91,31 +84,14 @@ size_t processFreeRunning(
     if (it != recons->end()) {
       auto m = msg.instantiate<EventArray>();
       if (!hasValidTime) {
-        event_array_codecs::DecoderFactory decoderFactory;
-        auto decoder =
-          decoderFactory.getInstance(m->encoding, m->width, m->height);
-        if (!decoder) {
-          std::cerr << "invalid encoding: " << m->encoding << std::endl;
-          throw(std::runtime_error("invalid encoding!"));
-        }
-        uint64_t firstSensorTime{0};
-        if (decoder->findFirstSensorTime(
-              m->events.data(), m->events.size(), &firstSensorTime)) {
-          nextSensorFrameTime =
-            (firstSensorTime / sliceInterval) * sliceInterval;
-          nextROSFrameTime =
-            m->header.stamp +
-            ros::Duration().fromNSec(firstSensorTime % sliceInterval);
-          hasValidTime = true;
-        } else {
-          std::cout << "WARNING: no time stamp found in packet!" << std::endl;
-          continue;  // never tested!
-        }
+        hasValidTime = sync_event_frames::utils::findNextFrameTime(
+          m, &nextSensorFrameTime, &nextROSFrameTime, sliceInterval);
       }
-      it->second.processMsg(m);
       // call processMsg() *before* adding the frames such that the
       // offset between sensor and ROS time is initialized when frame time
       // is added
+      it->second.processMsg(m);
+      // now add the frames
       if (nextROSFrameTime < m->header.stamp) {
         nextSensorFrameTime += sliceInterval;
         nextROSFrameTime += rosSliceInterval;
@@ -123,6 +99,7 @@ size_t processFreeRunning(
           r.second.addFrameTime(nextSensorFrameTime, nextROSFrameTime);
         }
       }
+
       numMessages++;
     }
   }
@@ -188,102 +165,22 @@ size_t processFrameBased(
   return (numMessages);
 }
 
-int main(int argc, char ** argv)
+size_t process_bag(
+  const std::string & inBagName, const std::string & outBagName,
+  const std::vector<std::string> & inTopics,
+  const std::vector<std::string> & outTopics,
+  const std::vector<std::string> & frameTopics, int cutoffPeriod,
+  bool hasSyncCable, double fps)
 {
-  int opt;
-  std::string inBagName;
-  std::string outBagName;
-  std::vector<std::string> inTopics;
-  std::vector<std::string> outTopics;
-  std::vector<std::string> frameTopics;
-  int cutoff_period(30);
-  bool hasSyncCable{false};
-  double fps(-1);
-  while ((opt = getopt(argc, argv, "i:o:t:T:f:C:c:sh")) != -1) {
-    switch (opt) {
-      case 'i':
-        inBagName = optarg;
-        break;
-      case 'o':
-        outBagName = optarg;
-        break;
-      case 't':
-        inTopics.push_back(std::string(optarg));
-        break;
-      case 'T':
-        outTopics.push_back(std::string(optarg));
-        break;
-      case 'f':
-        fps = atof(optarg);
-        break;
-      case 'c':
-        frameTopics.emplace_back(optarg);
-        break;
-      case 'C':
-        cutoff_period = atoi(optarg);
-        break;
-      case 's':
-        hasSyncCable = true;
-        break;
-      case 'h':
-        usage();
-        return (-1);
-        break;
-      default:
-        std::cout << "unknown option: " << opt << std::endl;
-        usage();
-        return (-1);
-        break;
-    }
-  }
-
-  if (inBagName.empty()) {
-    std::cout << "missing input bag file name!" << std::endl;
-    usage();
-    return (-1);
-  }
-
-  if (outBagName.empty()) {
-    std::cout << "missing output bag file name!" << std::endl;
-    usage();
-    return (-1);
-  }
-
-  if (inTopics.empty()) {
-    std::cout << "no input topics found!" << std::endl;
-    return (-1);
-  }
-  if (outTopics.empty()) {
-    for (const auto s : inTopics) {
-      outTopics.push_back(s + "/image_raw");
-    }
-  }
-
-  if (outTopics.size() != inTopics.size()) {
-    std::cout << "must have same number of input and output topics!"
-              << std::endl;
-    return (-1);
-  }
-
-  if (fps < 0 && frameTopics.empty()) {
-    std::cout << "must specify either frame camera topics or fps!" << std::endl;
-    return (-1);
-  }
-
-  if (fps > 0 && !frameTopics.empty()) {
-    std::cout << "cannot specify fps and frame camera topics simultaneously!"
-              << std::endl;
-    return (-1);
-  }
+  OutBagWriter writer(outBagName);
 
   const double fillRatio = 0.6;
   const int tileSize = 2;
-  OutBagWriter writer(outBagName);
   std::unordered_map<std::string, ApproxRecon> recons;
   for (size_t i = 0; i < inTopics.size(); i++) {
     recons.insert(
       {inTopics[i],
-       ApproxRecon(&writer, outTopics[i], cutoff_period, fillRatio, tileSize)});
+       ApproxRecon(&writer, outTopics[i], cutoffPeriod, fillRatio, tileSize)});
   }
 
   rosbag::Bag inBag;
@@ -301,3 +198,5 @@ int main(int argc, char ** argv)
 
   return (0);
 }
+
+#endif  // BAG_TO_FRAMES_ROS1_HPP_

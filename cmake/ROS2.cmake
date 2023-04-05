@@ -39,6 +39,10 @@ ament_target_dependencies(bag_to_frames
 
 target_link_libraries(bag_to_frames simple_image_recon_lib::simple_image_recon_lib)
 
+if(${rosbag2_cpp_VERSION_MAJOR} GREATER 0 OR ${rosbag2_cpp_VERSION_MINOR} GREATER 9)
+  add_definitions(-DUSE_NEW_ROSBAG_WRITE_INTERFACE)
+endif()
+
 
 # the nodes must go into the paroject specific lib directory or else
 # the launch file will not find it

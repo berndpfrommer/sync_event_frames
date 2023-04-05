@@ -76,15 +76,9 @@ public:
   }
 
   void frame(
-    const sensor_msgs::msg::Image::ConstSharedPtr & img,
-    const std::string & topic) override
+    const Image::ConstSharedPtr & img, const std::string & topic) override
   {
-    auto serialized_msg = std::make_shared<rclcpp::SerializedMessage>();
-    rclcpp::Serialization<Image> serialization;
-    serialization.serialize_message(img.get(), serialized_msg.get());
-    writer_->write(
-      *serialized_msg, topic, "sensor_msgs/msg/Image",
-      rclcpp::Time(img->header.stamp));
+    write<Image>(img, topic, "sensor_msgs/msg/Image");
     numFrames_++;
     if (numFrames_ % 100 == 0) {
       std::cout << "wrote " << numFrames_ << " frames " << std::endl;
@@ -96,11 +90,14 @@ public:
     const typename MsgT::ConstSharedPtr & m, const std::string & topic,
     const std::string & topicType)
   {
-    auto serialized_msg = std::make_shared<rclcpp::SerializedMessage>();
+    auto smsg = std::make_shared<rclcpp::SerializedMessage>();
     rclcpp::Serialization<MsgT> serialization;
-    serialization.serialize_message(m.get(), serialized_msg.get());
-    writer_->write(
-      *serialized_msg, topic, topicType, rclcpp::Time(m->header.stamp));
+    serialization.serialize_message(m.get(), smsg.get());
+#ifdef USE_NEW_ROSBAG_WRITE_INTERFACE
+    writer_->write(smsg, topic, topicType, rclcpp::Time(m->header.stamp));
+#else
+    writer_->write(*smsg, topic, topicType, rclcpp::Time(m->header.stamp));
+#endif
   }
 
 private:

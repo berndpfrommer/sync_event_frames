@@ -100,7 +100,7 @@ int main(int argc, char ** argv)
     return (-1);
   }
   if (outTopics.empty()) {
-    for (const auto s : inTopics) {
+    for (const auto & s : inTopics) {
       outTopics.push_back(s + "/image_raw");
     }
   }

@@ -16,8 +16,8 @@
 #ifndef BAG_TO_FRAMES_ROS1_HPP_
 #define BAG_TO_FRAMES_ROS1_HPP_
 
-#include <event_array_codecs/decoder_factory.h>
-#include <event_array_msgs/EventArray.h>
+#include <event_camera_codecs/decoder_factory.h>
+#include <event_camera_msgs/EventPacket.h>
 #include <ros/ros.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -31,7 +31,7 @@
 #include "sync_event_frames/frame_handler.hpp"
 #include "sync_event_frames/utils.hpp"
 
-using event_array_msgs::EventArray;
+using event_camera_msgs::EventPacket;
 using sensor_msgs::CompressedImage;
 using sensor_msgs::Image;
 
@@ -59,7 +59,7 @@ private:
 };
 
 using ApproxRecon = sync_event_frames::ApproxReconstructor<
-  EventArray, EventArray::ConstPtr, Image, Image::ConstPtr, ros::Time>;
+  EventPacket, EventPacket::ConstPtr, Image, Image::ConstPtr, ros::Time>;
 
 size_t processFreeRunning(
   double fps, rosbag::Bag & inBag, const std::vector<std::string> & inTopics,
@@ -82,7 +82,7 @@ size_t processFreeRunning(
   for (const rosbag::MessageInstance & msg : view) {
     auto it = recons->find(msg.getTopic());
     if (it != recons->end()) {
-      auto m = msg.instantiate<EventArray>();
+      auto m = msg.instantiate<EventPacket>();
       if (!hasValidTime) {
         hasValidTime = sync_event_frames::utils::findNextFrameTime(
           m, &nextSensorFrameTime, &nextROSFrameTime, sliceInterval);
@@ -153,7 +153,7 @@ size_t processFrameBased(
     auto ite = recons->find(topic);
     if (ite != recons->end()) {
       // handle event based camera msg
-      auto m = msg.instantiate<EventArray>();
+      auto m = msg.instantiate<EventPacket>();
       ite->second.processMsg(m);
     }
     if (std::find(ft.begin(), ft.end(), topic) != ft.end()) {

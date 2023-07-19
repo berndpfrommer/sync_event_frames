@@ -16,8 +16,8 @@
 #ifndef SYNC_EVENT_FRAMES__UTILS_HPP_
 #define SYNC_EVENT_FRAMES__UTILS_HPP_
 
-#include <event_array_codecs/decoder.h>
-#include <event_array_codecs/decoder_factory.h>
+#include <event_camera_codecs/decoder.h>
+#include <event_camera_codecs/decoder_factory.h>
 
 #include "sync_event_frames/ros_compat.hpp"
 
@@ -25,20 +25,20 @@ namespace sync_event_frames
 {
 namespace utils
 {
-template <class MsgPtrT, class RosTimeT>
+template <typename MsgPtrT, class RosTimeT>
 bool findNextFrameTime(
   MsgPtrT m, uint64_t * nextSensorFrameTime, RosTimeT * nextROSFrameTime,
   uint64_t sliceInterval)
 {
-  event_array_codecs::DecoderFactory decoderFactory;
-  auto decoder = decoderFactory.getInstance(m->encoding, m->width, m->height);
+  event_camera_codecs::DecoderFactory<typename MsgPtrT::element_type>
+    decoderFactory;
+  auto decoder = decoderFactory.getInstance(*m);
   if (!decoder) {
     std::cout << "invalid encoding: " << m->encoding << std::endl;
     throw(std::runtime_error("invalid encoding!"));
   }
   uint64_t firstSensorTime{0};
-  if (decoder->findFirstSensorTime(
-        m->events.data(), m->events.size(), &firstSensorTime)) {
+  if (decoder->findFirstSensorTime(*m, &firstSensorTime)) {
     *nextSensorFrameTime = (firstSensorTime / sliceInterval) * sliceInterval;
     *nextROSFrameTime =
       RosTimeT(m->header.stamp) +

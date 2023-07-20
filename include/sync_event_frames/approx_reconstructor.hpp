@@ -16,8 +16,8 @@
 #ifndef SYNC_EVENT_FRAMES__APPROX_RECONSTRUCTOR_HPP_
 #define SYNC_EVENT_FRAMES__APPROX_RECONSTRUCTOR_HPP_
 
-#include <event_array_codecs/decoder_factory.h>
-#include <event_array_codecs/event_processor.h>
+#include <event_camera_codecs/decoder_factory.h>
+#include <event_camera_codecs/event_processor.h>
 
 #include <memory>
 #include <queue>
@@ -32,9 +32,9 @@
 namespace sync_event_frames
 {
 template <
-  typename EventArrayT, typename EventArrayConstSharedPtrT, typename ImageT,
+  typename EventPacketT, typename EventPacketConstSharedPtrT, typename ImageT,
   typename ImageConstPtrT, typename RosTimeT>
-class ApproxReconstructor : public event_array_codecs::EventProcessor
+class ApproxReconstructor : public event_camera_codecs::EventProcessor
 {
 public:
   struct FrameTime
@@ -44,7 +44,7 @@ public:
     RosTimeT rosTime;
   };
 
-  using EventArray = EventArrayT;
+  using EventPacket = EventPacketT;
   explicit ApproxReconstructor(
     FrameHandler<ImageConstPtrT> * fh, const std::string & topic,
     int cutoffNumEvents = 30, double fillRatio = 0.6, int tileSize = 2)
@@ -86,7 +86,7 @@ public:
   }
 
   void setSyncOnSensorTime(bool s) { syncOnSensorTime_ = s; }
-  void processMsg(EventArrayConstSharedPtrT msg)
+  void processMsg(EventPacketConstSharedPtrT msg)
   {
     if (imageMsgTemplate_.height == 0) {
       imageMsgTemplate_.header = msg->header;
@@ -99,18 +99,16 @@ public:
         msg->width, msg->height,
         static_cast<uint32_t>(std::abs(cutoffNumEvents_)), tileSize_,
         fillRatio_);
-      decoder_ =
-        decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
+      decoder_ = decoderFactory_.getInstance(*msg);
       if (!decoder_) {
         std::cerr << "invalid encoding: " << msg->encoding << std::endl;
         throw(std::runtime_error("invalid encoding!"));
       }
 
-      auto decoder = event_array_codecs::DecoderFactory().getInstance(
-        msg->encoding, msg->width, msg->height);
+      auto decoder =
+        event_camera_codecs::DecoderFactory<EventPacketT>().getInstance(*msg);
       uint64_t firstTS{0};
-      bool foundTime = decoder->findFirstSensorTime(
-        msg->events.data(), msg->events.size(), &firstTS);
+      bool foundTime = decoder->findFirstSensorTime(*msg, &firstTS);
       if (!foundTime) {
         std::cout << "WARNING: first message does not contain time stamp!"
                   << std::endl;
@@ -127,23 +125,18 @@ public:
   {
     while (!bufferedMessages_.empty() && !frameTimes_.empty()) {
       auto msg = bufferedMessages_.front();
-      const size_t bytesToDecode = msg->events.size() - firstByteToDecode_;
+      // this loop will run until the message is completely decoded or
+      // the last frame is used up
       uint64_t nextTime{0};
-      if (firstByteToDecode_ == 0) {
-        updateROStoSensorTimeOffset_ = true;
-      }
-      const size_t bytesDecoded = decoder_->decodeUntil(
-        &(msg->events[firstByteToDecode_]), bytesToDecode, this,
-        frameTimes_.front().sensorTime, &nextTime);
-      if (bytesDecoded < bytesToDecode) {
-        // message could not be completely decoded
-        // before hitting the next frame time
-        firstByteToDecode_ += bytesDecoded;  // move the index pointer
+      bool messageExhausted(false);
+      while (!frameTimes_.empty() && !messageExhausted) {
+        messageExhausted = !decoder_->decodeUntil(
+          *msg, this, frameTimes_.front().sensorTime, &nextTime);
         emitFramesOlderThan(nextTime);
-      } else {
-        // message was completely decoded
+      }
+
+      if (messageExhausted) {
         bufferedMessages_.pop();
-        firstByteToDecode_ = 0;
       }
     }
   }
@@ -184,12 +177,13 @@ private:
   TimeOffset timeOffset_;
   bool updateROStoSensorTimeOffset_{true};
   bool syncOnSensorTime_{false};
-  event_array_codecs::Decoder<ApproxReconstructor> * decoder_{nullptr};
-  event_array_codecs::DecoderFactory<ApproxReconstructor> decoderFactory_;
+  event_camera_codecs::Decoder<EventPacket, ApproxReconstructor> * decoder_{
+    nullptr};
+  event_camera_codecs::DecoderFactory<EventPacket, ApproxReconstructor>
+    decoderFactory_;
   simple_image_recon_lib::SimpleImageReconstructor simpleReconstructor_;
   std::queue<FrameTime> frameTimes_;
-  std::queue<EventArrayConstSharedPtrT> bufferedMessages_;
-  size_t firstByteToDecode_{0};
+  std::queue<EventPacketConstSharedPtrT> bufferedMessages_;
 };
 }  // namespace sync_event_frames
 #endif  // SYNC_EVENT_FRAMES__APPROX_RECONSTRUCTOR_HPP_

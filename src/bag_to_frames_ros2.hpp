@@ -16,7 +16,7 @@
 #ifndef BAG_TO_FRAMES_ROS2_HPP_
 #define BAG_TO_FRAMES_ROS2_HPP_
 
-#include <event_array_msgs/msg/event_array.hpp>
+#include <event_camera_msgs/msg/event_packet.hpp>
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/serialization.hpp>
@@ -35,7 +35,7 @@
 #include "sync_event_frames/frame_handler.hpp"
 #include "sync_event_frames/utils.hpp"
 
-using event_array_msgs::msg::EventArray;
+using event_camera_msgs::msg::EventPacket;
 using sensor_msgs::msg::CompressedImage;
 using sensor_msgs::msg::Image;
 
@@ -106,7 +106,7 @@ private:
 };
 
 using ApproxRecon = sync_event_frames::ApproxReconstructor<
-  EventArray, EventArray::ConstSharedPtr, Image, Image::ConstSharedPtr,
+  EventPacket, EventPacket::ConstSharedPtr, Image, Image::ConstSharedPtr,
   rclcpp::Time>;
 
 size_t processFreeRunning(
@@ -126,13 +126,13 @@ size_t processFreeRunning(
   uint64_t nextSensorFrameTime = 0;
   rclcpp::Time nextROSFrameTime;
   bool hasValidTime{false};
-  rclcpp::Serialization<EventArray> eventsSerialization;
+  rclcpp::Serialization<EventPacket> eventsSerialization;
 
   while (reader.has_next()) {
     auto msg = reader.read_next();
     auto it = recons->find(msg->topic_name);
     if (it != recons->end()) {
-      auto m = deserialize<EventArray>(msg);
+      auto m = deserialize<EventPacket>(msg);
       if (!hasValidTime) {
         hasValidTime = sync_event_frames::utils::findNextFrameTime(
           m, &nextSensorFrameTime, &nextROSFrameTime, sliceInterval);
@@ -206,7 +206,7 @@ size_t processFrameBased(
     auto ite = recons->find(topic);
     if (ite != recons->end()) {
       // handle event based camera msg
-      auto m = deserialize<EventArray>(msg);
+      auto m = deserialize<EventPacket>(msg);
       ite->second.processMsg(m);
     }
     if (std::find(ft.begin(), ft.end(), topic) != ft.end()) {

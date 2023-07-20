@@ -7,7 +7,7 @@ reconstructed frames that can be used for intrinsic and extrinsic
 calibration.
 
 The event data must be stored in 
-[event_array_msgs](https://github.com/berndpfrommer/event_array_msgs) format. The
+[event_camera_msgs](https://github.com/ros-event-camera/event_camera_msgs) format. The
 core logic of event reconstruction can be found in the
 [simple image recon library package](https://github.com/berndpfrommer/simple_image_recon_lib).
 

@@ -21,8 +21,8 @@ find_package(ament_cmake_ros REQUIRED)
 find_package(simple_image_recon_lib REQUIRED)
 
 find_package(rclcpp REQUIRED)
-find_package(event_array_msgs REQUIRED)
-find_package(event_array_codecs REQUIRED)
+find_package(event_camera_msgs REQUIRED)
+find_package(event_camera_codecs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(rosbag2_cpp REQUIRED)
 
@@ -34,7 +34,7 @@ set(CMAKE_CXX_STANDARD 17)
 add_executable(bag_to_frames src/bag_to_frames_main.cpp)
 target_include_directories(bag_to_frames PUBLIC include)
 ament_target_dependencies(bag_to_frames
-  rclcpp event_array_codecs event_array_msgs sensor_msgs
+  rclcpp event_camera_codecs event_camera_msgs sensor_msgs
   rosbag2_cpp)
 
 target_link_libraries(bag_to_frames simple_image_recon_lib::simple_image_recon_lib)

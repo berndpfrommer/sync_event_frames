@@ -24,8 +24,8 @@ find_package(simple_image_recon_lib)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rosbag
-  event_array_msgs
-  event_array_codecs
+  event_camera_msgs
+  event_camera_codecs
   sensor_msgs)
 
 catkin_package()

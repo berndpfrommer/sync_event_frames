@@ -123,17 +123,21 @@ public:
 
   void process()
   {
-    while (!bufferedMessages_.empty()) {
+    while (!bufferedMessages_.empty() && !frameTimes_.empty()) {
       auto msg = bufferedMessages_.front();
-      uint64_t nextTime{0};
       // this loop will run until the message is completely decoded or
       // the last frame is used up
-      while (!frameTimes_.empty() &&
-             decoder_->decodeUntil(
-               *msg, this, frameTimes_.front().sensorTime, &nextTime)) {
+      uint64_t nextTime{0};
+      bool messageExhausted(false);
+      while (!frameTimes_.empty() && !messageExhausted) {
+        messageExhausted = !decoder_->decodeUntil(
+          *msg, this, frameTimes_.front().sensorTime, &nextTime);
         emitFramesOlderThan(nextTime);
       }
-      bufferedMessages_.pop();
+
+      if (messageExhausted) {
+        bufferedMessages_.pop();
+      }
     }
   }
 

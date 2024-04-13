@@ -65,13 +65,18 @@ public:
     writer_ = std::make_unique<rosbag2_cpp::Writer>();
     writer_->open(bagName);
     for (const auto & topic : outTopics) {
-      writer_->create_topic(
-        {topic, "sensor_msgs/msg/Image", rmw_get_serialization_format(), ""});
+      rosbag2_storage::TopicMetadata tmd;
+      tmd.name = topic;
+      tmd.type = "sensor_msgs/msg/Image";
+      tmd.serialization_format = rmw_get_serialization_format();
+      writer_->create_topic(tmd);
     }
     for (const auto & topic : compressedOutTopics) {
-      writer_->create_topic(
-        {topic, "sensor_msgs/msg/CompressedImage",
-         rmw_get_serialization_format(), ""});
+      rosbag2_storage::TopicMetadata tmd;
+      tmd.name = topic;
+      tmd.type = "sensor_msgs/msg/CompressedImage";
+      tmd.serialization_format = rmw_get_serialization_format();
+      writer_->create_topic(tmd);
     }
   }
 

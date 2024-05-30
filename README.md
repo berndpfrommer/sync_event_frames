@@ -24,30 +24,16 @@ Currently tested on Ubuntu 20.04 under ROS Noetic and ROS2
 Galactic. Continuous integration testing also for Ubuntu 22.04 under
 ROS2 Humble.
 
-## How to build
-Create a workspace, clone this repo, and use ``vcs`` tool
-```
-pkg=event_sync_frames
-mkdir -p ~/${pkg}/src
-cd ~/${pkg}/src
-git clone https://github.com/berndpfrommer/${pkg}.git
-vcs import < ${pkg}/${pkg}.repos
-cd ..
-```
 
-### configure and build on ROS1:
+### How to build
 
+Set the following shell variables:
+```bash
+repo=sync_event_frames
+url=https://github.com/ros-event-camera/${repo}.git
 ```
-catkin config -DCMAKE_BUILD_TYPE=RelWithDebInfo  # (optionally add -DCMAKE_EXPORT_COMPILE_COMMANDS=1)
-catkin build
-```
+and follow the [instructions here](https://github.com/ros-misc-utilities/.github/blob/master/docs/build_ros_repository.md)
 
-### configure and build on ROS2:
-
-```
-cd ~/ws
-colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo  # (optionally add -DCMAKE_EXPORT_COMPILE_COMMANDS=1)
-```
 
 ## How to use
 

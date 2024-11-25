@@ -43,9 +43,10 @@ bag_to_frames -i input_bag -o output_bag -t event_camera_input_topic [-T event_f
 ```
 If you have multiple cameras, specify the respective flag multiple times, once for each camera.
 
-You can use this in two modes:
+You can use this in three modes:
 1) free running. Use this mode if you don't have a frame based camera, but e.g. two event cameras that you want to calibrate intrinsically and extrinsically. This mode is activated by specifying the frame rate (``-f``). The output bag will contain reconstructed event frame images but no frame camera images as those are ignored.
 2) frame camera driven. Here the event camera frames will be reconstructed such that they are synchronized with the frame camera time stamps. The frame camera images must be synchronized, i.e. the header stamp of the image messages *must* have identical time stamps across all frame cameras.
+3) time stamp file driven. This will reconstruct frames at the time stamps given in a file (option ``-x``). The time stamps are interpreted as sensor times, given as integer numbers in microseconds.
 
 If the output topics (``-T option``) are not specified they will become the events topic with ``/image_raw`` appended.
 
@@ -58,6 +59,8 @@ The same in free running mode:
 ```
 rosrun sync_event_frames bag_to_frames -i input.bag -o synced.bag -f 25.0 -t /prophesee/left/events -t /prophesee/right/events
 ```
+
+For more options run the command with the ``-h`` flag.
 
 ## License
 

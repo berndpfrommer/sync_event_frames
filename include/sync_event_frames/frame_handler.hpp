@@ -23,7 +23,8 @@ class FrameHandler
 {
 public:
   virtual void frame(
-    const ImageConstSharedPtrT & img, const std::string & topic) = 0;
+    uint64_t sensor_time, const ImageConstSharedPtrT & img,
+    const std::string & topic) = 0;
   virtual ~FrameHandler() {}
 };
 }  // namespace sync_event_frames

@@ -69,13 +69,13 @@ public:
     simpleReconstructor_.event(t, ex, ey, polarity);
   }
   void eventExtTrigger(uint64_t, uint8_t, uint8_t) override {}
-  void finished() override{};
-  void rawData(const char *, size_t) override{};
+  void finished() override {}
+  void rawData(const char *, size_t) override {}
   // --------- end of inherited from EventProcessor
 
   void addFrameTime(uint64_t sensorTime, const RosTimeT t)
   {
-    // if there is no sync cable between the cameras,
+    // if there is no sync cable between the event cameras,
     // compute the sensor time from ros time and offset
     const uint64_t st =
       syncOnSensorTime_
@@ -85,6 +85,7 @@ public:
     process();
   }
 
+  // Set this to true if the event cams are hw synced to each other.
   void setSyncOnSensorTime(bool s) { syncOnSensorTime_ = s; }
   void processMsg(EventPacketConstSharedPtrT msg)
   {
@@ -162,7 +163,7 @@ private:
       msg->data.resize(msg->height * msg->step);
       simpleReconstructor_.getImage(&(msg->data[0]), msg->step);
       msg->header.stamp = frameTime.rosTime;
-      frameHandler_->frame(std::move(msg), topic_);
+      frameHandler_->frame(frameTime.sensorTime, std::move(msg), topic_);
       frameTimes_.pop();
     }
   }

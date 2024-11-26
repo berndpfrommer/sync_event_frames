@@ -29,6 +29,8 @@ void usage()
   std::cout << "usage:" << std::endl;
   std::cout << "bag_to_frames -i input_bag -o output_bag"
                " -t event_camera_input_topic [-T event_frame_output_topic]"
+               " [-s (if free running + ev cams are hw synced)]"
+               " [-x time_stamp_file]"
                " [-c frame_camera_input_topic] [-f fps]"
                " [-C cutoff_period]"
             << std::endl;
@@ -39,19 +41,24 @@ int main(int argc, char ** argv)
   int opt;
   std::string inBagName;
   std::string outBagName;
+  std::string timeStampFile;
   std::vector<std::string> inTopics;
   std::vector<std::string> outTopics;
   std::vector<std::string> frameTopics;
   int cutoffPeriod(30);
   bool hasSyncCable{false};
   double fps(-1);
-  while ((opt = getopt(argc, argv, "i:o:t:T:f:C:c:sh")) != -1) {
+  bool writePNG{false};
+  while ((opt = getopt(argc, argv, "i:o:t:T:f:C:c:x:shp")) != -1) {
     switch (opt) {
       case 'i':
         inBagName = optarg;
         break;
       case 'o':
         outBagName = optarg;
+        break;
+      case 'x':
+        timeStampFile = optarg;
         break;
       case 't':
         inTopics.push_back(std::string(optarg));
@@ -70,6 +77,9 @@ int main(int argc, char ** argv)
         break;
       case 's':
         hasSyncCable = true;
+        break;
+      case 'p':
+        writePNG = true;
         break;
       case 'h':
         usage();
@@ -111,8 +121,10 @@ int main(int argc, char ** argv)
     return (-1);
   }
 
-  if (fps < 0 && frameTopics.empty()) {
-    std::cout << "must specify either frame camera topics or fps!" << std::endl;
+  if (fps < 0 && frameTopics.empty() && timeStampFile.empty()) {
+    std::cout
+      << "must specify either frame camera topics, fps, or time stamp file!"
+      << std::endl;
     return (-1);
   }
 
@@ -122,10 +134,15 @@ int main(int argc, char ** argv)
     return (-1);
   }
   auto start = std::chrono::high_resolution_clock::now();
+  if (!timeStampFile.empty() && !hasSyncCable) {
+    std::cout << "using sensor time to sync against time stamps in file!"
+              << std::endl;
+    hasSyncCable = true;
+  }
 
   size_t numMessages = process_bag(
-    inBagName, outBagName, inTopics, outTopics, frameTopics, cutoffPeriod,
-    hasSyncCable, fps);
+    inBagName, outBagName, timeStampFile, inTopics, outTopics, frameTopics,
+    cutoffPeriod, hasSyncCable, fps, writePNG);
   auto final = std::chrono::high_resolution_clock::now();
   auto dt =
     std::chrono::duration_cast<std::chrono::microseconds>(final - start);

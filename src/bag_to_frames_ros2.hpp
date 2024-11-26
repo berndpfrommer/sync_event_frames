@@ -17,7 +17,10 @@
 #define BAG_TO_FRAMES_ROS2_HPP_
 
 #include <event_camera_msgs/msg/event_packet.hpp>
+#include <filesystem>
 #include <memory>
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgcodecs.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/serialization.hpp>
 #include <rclcpp/serialized_message.hpp>
@@ -34,6 +37,12 @@
 #include "sync_event_frames/approx_reconstructor.hpp"
 #include "sync_event_frames/frame_handler.hpp"
 #include "sync_event_frames/utils.hpp"
+
+#ifdef USE_CV_BRIDGE_HPP
+#include <cv_bridge/cv_bridge.hpp>
+#else
+#include <cv_bridge/cv_bridge.h>
+#endif
 
 using event_camera_msgs::msg::EventPacket;
 using sensor_msgs::msg::CompressedImage;
@@ -60,7 +69,9 @@ class OutBagWriter
 public:
   explicit OutBagWriter(
     const std::string & bagName, const std::vector<std::string> & outTopics,
-    const std::vector<std::string> & compressedOutTopics)
+    const std::vector<std::string> & compressedOutTopics,
+    bool writeFrames = false)
+  : bagName_(bagName), writeFrames_(writeFrames)
   {
     writer_ = std::make_unique<rosbag2_cpp::Writer>();
     writer_->open(bagName);
@@ -78,12 +89,29 @@ public:
       tmd.serialization_format = rmw_get_serialization_format();
       writer_->create_topic(tmd);
     }
+    if (writeFrames_) {
+      std::filesystem::create_directories(
+        bagName + "/frames");  // does recursive...
+    }
   }
 
   void frame(
-    const Image::ConstSharedPtr & img, const std::string & topic) override
+    uint64_t sensor_time, const Image::ConstSharedPtr & img,
+    const std::string & topic) override
   {
     write<Image>(img, topic, "sensor_msgs/msg/Image");
+    if (writeFrames_) {
+#if 1
+      std::cout << "frame " << numFrames_ << " ros time: "
+                << rclcpp::Time(img->header.stamp).nanoseconds()
+                << " sensor time: " << sensor_time << std::endl;
+#endif
+      std::stringstream ss;
+      ss << std::setw(10) << std::setfill('0') << sensor_time / 1000UL;
+      const auto fname = bagName_ + "/frames/frame_" + ss.str() + ".png";
+      auto cvImg = cv_bridge::toCvShare(img, "mono8");
+      cv::imwrite(fname, cvImg->image);
+    }
     numFrames_++;
     if (numFrames_ % 100 == 0) {
       std::cout << "wrote " << numFrames_ << " frames " << std::endl;
@@ -108,6 +136,8 @@ public:
 private:
   std::unique_ptr<rosbag2_cpp::Writer> writer_;
   size_t numFrames_{0};
+  std::string bagName_;
+  bool writeFrames_{false};
 };
 
 using ApproxRecon = sync_event_frames::ApproxReconstructor<
@@ -158,6 +188,55 @@ size_t processFreeRunning(
       }
       numMessages++;
     }
+  }
+  return (numMessages);
+}
+
+std::vector<uint64_t> readTimeStamps(const std::string & fn)
+{
+  std::ifstream file(fn);
+  if (file.fail()) {
+    throw(std::runtime_error("cannot read time stamp file!"));
+  }
+  uint64_t t;
+  std::vector<uint64_t> v;
+  while (file >> t) {
+    v.push_back(t * 1000);  // assume file is in usec
+  }
+  return (v);
+}
+
+size_t processOnTimeStamps(
+  const std::string & tsFile, rosbag2_cpp::Reader & reader,
+  bool syncOnSensorTime, std::unordered_map<std::string, ApproxRecon> * recons)
+{
+  std::cout << "Using time stamp file " << tsFile << std::endl;
+  const auto timeStamps = readTimeStamps(tsFile);
+  std::cout << "Read " << timeStamps.size() << " time stamps" << std::endl;
+  if (timeStamps.empty()) {
+    std::cerr << "no valid time stamps found in file!" << std::endl;
+  }
+  std::cout << "time range: " << *timeStamps.begin() << " - "
+            << *timeStamps.rbegin() << std::endl;
+
+  for (auto & r : *recons) {
+    r.second.setSyncOnSensorTime(syncOnSensorTime);
+    for (const auto & t : timeStamps) {
+      r.second.addFrameTime(t, rclcpp::Time());
+    }
+  }
+
+  size_t numMessages(0);
+  rclcpp::Serialization<EventPacket> eventsSerialization;
+
+  while (reader.has_next()) {
+    auto msg = reader.read_next();
+    auto it = recons->find(msg->topic_name);
+    if (it != recons->end()) {
+      auto m = deserialize<EventPacket>(msg);
+      it->second.processMsg(m);
+    }
+    numMessages++;
   }
   return (numMessages);
 }
@@ -259,10 +338,10 @@ std::unordered_map<std::string, std::string> getTopicMetaData(
 
 size_t process_bag(
   const std::string & inBagName, const std::string & outBagName,
-  const std::vector<std::string> & inTopics,
+  const std::string & timeStampFile, const std::vector<std::string> & inTopics,
   const std::vector<std::string> & outTopics,
   const std::vector<std::string> & frameTopics, int cutoffPeriod,
-  bool hasSyncCable, double fps)
+  bool hasSyncCable, double fps, bool writePNG)
 {
   rosbag2_cpp::Reader reader;
   reader.open(inBagName);
@@ -272,7 +351,8 @@ size_t process_bag(
   std::unordered_map<std::string, std::string> topicToType = getTopicMetaData(
     reader, frameTopics, &uncompressedTopics, &compressedTopics);
 
-  OutBagWriter writer(outBagName, uncompressedTopics, compressedTopics);
+  OutBagWriter writer(
+    outBagName, uncompressedTopics, compressedTopics, writePNG);
 
   // set up the reconstruction objects
   std::unordered_map<std::string, ApproxRecon> recons;
@@ -288,8 +368,13 @@ size_t process_bag(
   if (fps > 0) {
     numMessages = processFreeRunning(fps, reader, hasSyncCable, &recons);
   } else {
-    numMessages =
-      processFrameBased(frameTopics, topicToType, reader, &recons, &writer);
+    if (timeStampFile.empty()) {
+      numMessages =
+        processFrameBased(frameTopics, topicToType, reader, &recons, &writer);
+    } else {
+      numMessages =
+        processOnTimeStamps(timeStampFile, reader, hasSyncCable, &recons);
+    }
   }
   return (numMessages);
   return (0);

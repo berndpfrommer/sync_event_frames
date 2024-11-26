@@ -20,10 +20,9 @@ IMPORTANT: if multiple frame based cameras are used, they *must* be hardware or 
 
 ## Supported platforms
 
-Currently tested on Ubuntu 20.04 under ROS Noetic and ROS2
-Galactic. Continuous integration testing also for Ubuntu 22.04 under
-ROS2 Humble.
-
+Compiles on ROS1 noetic but *has not been tested at all*.
+ROS1 is essentially no longer supported. Please move to ROS2.
+CI testing under ROS2 later than Humble.
 
 ### How to build
 
@@ -39,13 +38,14 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
 
 The ``bag_to_frames`` command takes a bag with event and synchronized frame camera messages as input and produces a bag with the original camera frames plus reconstructed event camera frames. Here is the comand usage (launch with ``rosrun`` or ``ros2 run``:
 ```
-bag_to_frames -i input_bag -o output_bag -t event_camera_input_topic [-T event_frame_output_topic] [-c frame_camera_input_topic] [-f frame_rate]
+bag_to_frames -i input_bag -o output_bag -t event_camera_input_topic [-T event_frame_output_topic] [-c frame_camera_input_topic] [-f frame_rate] [-x time_stamp_file]
 ```
 If you have multiple cameras, specify the respective flag multiple times, once for each camera.
 
-You can use this in two modes:
+You can use this in three modes:
 1) free running. Use this mode if you don't have a frame based camera, but e.g. two event cameras that you want to calibrate intrinsically and extrinsically. This mode is activated by specifying the frame rate (``-f``). The output bag will contain reconstructed event frame images but no frame camera images as those are ignored.
 2) frame camera driven. Here the event camera frames will be reconstructed such that they are synchronized with the frame camera time stamps. The frame camera images must be synchronized, i.e. the header stamp of the image messages *must* have identical time stamps across all frame cameras.
+3) time stamp file driven. This will reconstruct frames at the time stamps given in a file (option ``-x``). The time stamps are interpreted as sensor times, given as integer numbers in microseconds.
 
 If the output topics (``-T option``) are not specified they will become the events topic with ``/image_raw`` appended.
 
@@ -58,6 +58,8 @@ The same in free running mode:
 ```
 rosrun sync_event_frames bag_to_frames -i input.bag -o synced.bag -f 25.0 -t /prophesee/left/events -t /prophesee/right/events
 ```
+
+For more options run the command with the ``-h`` flag.
 
 ## License
 

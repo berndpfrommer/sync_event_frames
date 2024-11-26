@@ -16,6 +16,7 @@
 #ifndef BAG_TO_FRAMES_ROS1_HPP_
 #define BAG_TO_FRAMES_ROS1_HPP_
 
+#include <cv_bridge/cv_bridge.h>
 #include <event_camera_codecs/decoder_factory.h>
 #include <event_camera_msgs/EventPacket.h>
 #include <ros/ros.h>
@@ -24,7 +25,10 @@
 #include <sensor_msgs/CompressedImage.h>
 #include <sensor_msgs/Image.h>
 
+#include <filesystem>
 #include <memory>
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgcodecs.hpp>
 #include <unordered_map>
 
 #include "sync_event_frames/approx_reconstructor.hpp"
@@ -38,13 +42,34 @@ using sensor_msgs::Image;
 class OutBagWriter : public sync_event_frames::FrameHandler<Image::ConstPtr>
 {
 public:
-  explicit OutBagWriter(const std::string & bagName)
+  explicit OutBagWriter(const std::string & bagName, bool writeFrames = false)
+  : bagName_(bagName), writeFrames_(writeFrames)
   {
     outBag_.open(bagName, rosbag::bagmode::Write);
+    if (writeFrames_) {
+      std::filesystem::create_directories(
+        bagName + "/frames");  // does recursive...
+    }
   }
-  void frame(const Image::ConstPtr & img, const std::string & topic) override
+  void frame(
+    uint64_t sensor_time, const Image::ConstPtr & img,
+    const std::string & topic) override
   {
     outBag_.write(topic, img->header.stamp, img);
+    numFrames_++;
+    if (numFrames_ % 100 == 0) {
+      std::cout << "wrote " << numFrames_ << " frames " << std::endl;
+    }
+    if (writeFrames_) {
+      std::cout << "frame " << numFrames_
+                << " ros time: " << ros::Time(img->header.stamp).toNSec()
+                << " sensor time: " << sensor_time << std::endl;
+      std::stringstream ss;
+      ss << std::setw(10) << std::setfill('0') << sensor_time / 1000UL;
+      const auto fname = bagName_ + "/frames/frame_" + ss.str() + ".png";
+      auto cvImg = cv_bridge::toCvShare(img, "mono8");
+      cv::imwrite(fname, cvImg->image);
+    }
     numFrames_++;
     if (numFrames_ % 100 == 0) {
       std::cout << "wrote " << numFrames_ << " frames " << std::endl;
@@ -56,6 +81,8 @@ public:
 private:
   rosbag::Bag outBag_;
   size_t numFrames_{0};
+  std::string bagName_;
+  bool writeFrames_{false};
 };
 
 using ApproxRecon = sync_event_frames::ApproxReconstructor<
@@ -100,6 +127,54 @@ size_t processFreeRunning(
         }
       }
 
+      numMessages++;
+    }
+  }
+  return (numMessages);
+}
+
+std::vector<uint64_t> readTimeStamps(const std::string & fn)
+{
+  std::ifstream file(fn);
+  if (file.fail()) {
+    throw(std::runtime_error("cannot read time stamp file!"));
+  }
+  uint64_t t;
+  std::vector<uint64_t> v;
+  while (file >> t) {
+    v.push_back(t * 1000);  // assume file is in usec
+  }
+  return (v);
+}
+
+size_t processOnTimeStamps(
+  const std::string & tsFile, rosbag::Bag & inBag,
+  const std::vector<std::string> & inTopics, bool syncOnSensorTime,
+  std::unordered_map<std::string, ApproxRecon> * recons)
+{
+  std::cout << "Using time stamp file " << tsFile << std::endl;
+  const auto timeStamps = readTimeStamps(tsFile);
+  std::cout << "Read " << timeStamps.size() << " time stamps" << std::endl;
+  if (timeStamps.empty()) {
+    std::cerr << "no valid time stamps found in file!" << std::endl;
+  }
+  std::cout << "time range: " << *timeStamps.begin() << " - "
+            << *timeStamps.rbegin() << std::endl;
+
+  for (auto & r : *recons) {
+    r.second.setSyncOnSensorTime(syncOnSensorTime);
+    for (const auto & t : timeStamps) {
+      r.second.addFrameTime(t, ros::Time());
+    }
+  }
+
+  size_t numMessages(0);
+  rosbag::View view(inBag, rosbag::TopicQuery(inTopics));
+  for (const rosbag::MessageInstance & msg : view) {
+    auto it = recons->find(msg.getTopic());
+    if (it != recons->end()) {
+      auto m = msg.instantiate<EventPacket>();
+      it->second.processMsg(m);
       numMessages++;
     }
   }
@@ -167,12 +242,12 @@ size_t processFrameBased(
 
 size_t process_bag(
   const std::string & inBagName, const std::string & outBagName,
-  const std::vector<std::string> & inTopics,
+  const std::string & timeStampFile, const std::vector<std::string> & inTopics,
   const std::vector<std::string> & outTopics,
   const std::vector<std::string> & frameTopics, int cutoffPeriod,
-  bool hasSyncCable, double fps)
+  bool hasSyncCable, double fps, bool writePNG)
 {
-  OutBagWriter writer(outBagName);
+  OutBagWriter writer(outBagName, writePNG);
 
   const double fillRatio = 0.6;
   const int tileSize = 2;
@@ -191,8 +266,13 @@ size_t process_bag(
     numMessages =
       processFreeRunning(fps, inBag, inTopics, hasSyncCable, &recons);
   } else {
-    numMessages =
-      processFrameBased(frameTopics, inBag, inTopics, &recons, writer.getBag());
+    if (timeStampFile.empty()) {
+      numMessages = processFrameBased(
+        frameTopics, inBag, inTopics, &recons, writer.getBag());
+    } else {
+      numMessages = processOnTimeStamps(
+        timeStampFile, inBag, inTopics, hasSyncCable, &recons);
+    }
   }
   std::cout << "processed " << numMessages << " messages." << std::endl;
 

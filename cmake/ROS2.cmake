@@ -25,6 +25,12 @@ find_package(event_camera_msgs REQUIRED)
 find_package(event_camera_codecs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(rosbag2_cpp REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(OpenCV REQUIRED)
+
+if(${cv_bridge_VERSION} GREATER "3.3.0")
+  add_definitions(-DUSE_CV_BRIDGE_HPP)
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -35,9 +41,9 @@ add_executable(bag_to_frames src/bag_to_frames_main.cpp)
 target_include_directories(bag_to_frames PUBLIC include)
 ament_target_dependencies(bag_to_frames
   rclcpp event_camera_codecs event_camera_msgs sensor_msgs
-  rosbag2_cpp)
+  rosbag2_cpp cv_bridge)
 
-target_link_libraries(bag_to_frames simple_image_recon_lib::simple_image_recon_lib)
+target_link_libraries(bag_to_frames simple_image_recon_lib::simple_image_recon_lib opencv_core opencv_imgcodecs)
 
 if(${rosbag2_cpp_VERSION_MAJOR} GREATER 0 OR ${rosbag2_cpp_VERSION_MINOR} GREATER 9)
   add_definitions(-DUSE_NEW_ROSBAG_WRITE_INTERFACE)

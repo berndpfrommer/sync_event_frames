@@ -20,10 +20,9 @@ IMPORTANT: if multiple frame based cameras are used, they *must* be hardware or 
 
 ## Supported platforms
 
-Currently tested on Ubuntu 20.04 under ROS Noetic and ROS2
-Galactic. Continuous integration testing also for Ubuntu 22.04 under
-ROS2 Humble.
-
+Compiles on ROS1 noetic but *has not been tested at all*.
+ROS1 is essentially no longer supported. Please move to ROS2.
+CI testing under ROS2 later than Humble.
 
 ### How to build
 
@@ -39,7 +38,7 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
 
 The ``bag_to_frames`` command takes a bag with event and synchronized frame camera messages as input and produces a bag with the original camera frames plus reconstructed event camera frames. Here is the comand usage (launch with ``rosrun`` or ``ros2 run``:
 ```
-bag_to_frames -i input_bag -o output_bag -t event_camera_input_topic [-T event_frame_output_topic] [-c frame_camera_input_topic] [-f frame_rate]
+bag_to_frames -i input_bag -o output_bag -t event_camera_input_topic [-T event_frame_output_topic] [-c frame_camera_input_topic] [-f frame_rate] [-x time_stamp_file]
 ```
 If you have multiple cameras, specify the respective flag multiple times, once for each camera.
 

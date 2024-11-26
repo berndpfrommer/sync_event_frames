@@ -17,6 +17,7 @@
 #define BAG_TO_FRAMES_ROS2_HPP_
 
 #include <event_camera_msgs/msg/event_packet.hpp>
+#include <filesystem>
 #include <memory>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgcodecs.hpp>

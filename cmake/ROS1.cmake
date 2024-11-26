@@ -26,7 +26,10 @@ find_package(catkin REQUIRED COMPONENTS
   rosbag
   event_camera_msgs
   event_camera_codecs
-  sensor_msgs)
+  sensor_msgs
+  cv_bridge)
+
+find_package(OpenCV REQUIRED)
 
 catkin_package()
 
@@ -34,7 +37,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS})
 
-set(ALL_LIBS simple_image_recon_lib::simple_image_recon_lib ${catkin_LIBRARIES})
+set(ALL_LIBS simple_image_recon_lib::simple_image_recon_lib opencv_core opencv_imgcodecs ${catkin_LIBRARIES})
 
 #
 # -------- bag_to_frames

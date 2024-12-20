@@ -147,13 +147,14 @@ public:
   // returns  t_ros - t_sensor in nanoseconds
   int64_t getSensorTimeOffset() const { return (timeOffset_.getOffset()); }
 
-private:
   void updateROSTimeOffset(uint64_t tros, uint64_t tsens)
   {
     timeOffset_.update(tros, tsens);
     updateROStoSensorTimeOffset_ =
       false;  // only update on first event after stamp
   }
+
+private:
   void emitFramesOlderThan(uint64_t currentTime)
   {
     while (!frameTimes_.empty() &&

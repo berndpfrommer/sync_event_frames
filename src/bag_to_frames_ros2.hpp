@@ -192,16 +192,18 @@ size_t processFreeRunning(
   return (numMessages);
 }
 
-std::vector<uint64_t> readTimeStamps(const std::string & fn)
+std::vector<std::pair<uint64_t, uint64_t>> readTimeStamps(
+  const std::string & fn)
 {
   std::ifstream file(fn);
   if (file.fail()) {
     throw(std::runtime_error("cannot read time stamp file!"));
   }
   uint64_t t;
-  std::vector<uint64_t> v;
-  while (file >> t) {
-    v.push_back(t * 1000);  // assume file is in usec
+  uint64_t ros_t;
+  std::vector<std::pair<uint64_t, uint64_t>> v;
+  while (file >> ros_t >> t) {
+    v.push_back({ros_t, t * 1000});  // assumes  sensor time is in usec
   }
   return (v);
 }
@@ -216,18 +218,18 @@ size_t processOnTimeStamps(
   if (timeStamps.empty()) {
     std::cerr << "no valid time stamps found in file!" << std::endl;
   }
-  std::cout << "time range: " << *timeStamps.begin() << " - "
-            << *timeStamps.rbegin() << std::endl;
+  std::cout << "sensor time range: " << timeStamps.begin()->second << " - "
+            << timeStamps.rbegin()->second << std::endl;
+
+  size_t numMessages(0);
+  rclcpp::Serialization<EventPacket> eventsSerialization;
 
   for (auto & r : *recons) {
     r.second.setSyncOnSensorTime(syncOnSensorTime);
     for (const auto & t : timeStamps) {
-      r.second.addFrameTime(t, rclcpp::Time());
+      r.second.addFrameTime(t.second, rclcpp::Time(t.first, RCL_SYSTEM_TIME));
     }
   }
-
-  size_t numMessages(0);
-  rclcpp::Serialization<EventPacket> eventsSerialization;
 
   while (reader.has_next()) {
     auto msg = reader.read_next();
@@ -377,7 +379,6 @@ size_t process_bag(
     }
   }
   return (numMessages);
-  return (0);
 }
 
 #endif  // BAG_TO_FRAMES_ROS2_HPP_

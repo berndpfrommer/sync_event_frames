@@ -71,6 +71,26 @@ public:
   void eventExtTrigger(uint64_t, uint8_t, uint8_t) override {}
   void finished() override {}
   void rawData(const char *, size_t) override {}
+  // ------------ own methods
+  size_t getWidth() const { return (simpleReconstructor_.getWidth()); }
+  size_t getHeight() const { return (simpleReconstructor_.getHeight()); }
+
+#ifdef COUNT_EVENTS
+  void getEventCount(uint64_t * img, size_t stride) const
+  {
+    return (simpleReconstructor_.getEventCount(img, stride));
+  }
+#endif
+#ifdef SUPPORT_SCALE
+  void readScaleFile(const std::string & f)
+  {
+    simpleReconstructor_.readScaleFile(f);
+  }
+#endif
+  void getThresholds(float * thresh, size_t stride) const
+  {
+    simpleReconstructor_.getThresholds(thresh, stride);
+  }
   // --------- end of inherited from EventProcessor
 
   void addFrameTime(uint64_t sensorTime, const RosTimeT t)
@@ -99,7 +119,7 @@ public:
       simpleReconstructor_.initialize(
         msg->width, msg->height,
         static_cast<uint32_t>(std::abs(cutoffNumEvents_)), tileSize_,
-        fillRatio_);
+        fillRatio_, 640, 480, 0.002);  // 0.999999999);
       decoder_ = decoderFactory_.getInstance(*msg);
       if (!decoder_) {
         std::cerr << "invalid encoding: " << msg->encoding << std::endl;

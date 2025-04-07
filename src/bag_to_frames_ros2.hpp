@@ -208,6 +208,30 @@ std::vector<std::pair<uint64_t, uint64_t>> readTimeStamps(
   return (v);
 }
 
+void write_count_file(const std::string & fname, const ApproxRecon & rec)
+{
+  std::ofstream event_count_file(fname);
+  std::vector<uint64_t> counts(rec.getWidth() * rec.getHeight() * 2);
+  rec.getEventCount(&counts[0], rec.getWidth() * 2);
+  std::cout << "writing count file: " << fname << " " << rec.getWidth() << " "
+            << rec.getHeight() << std::endl;
+  for (size_t i = 0; i < rec.getWidth() * rec.getHeight(); i++) {
+    event_count_file << counts[2 * i] << " " << counts[2 * i + 1] << std::endl;
+  }
+}
+
+void write_threshold_file(const std::string & fname, const ApproxRecon & rec)
+{
+  std::ofstream threshold_file(fname);
+  std::vector<float> thresh(rec.getWidth() * rec.getHeight() * 2);
+  rec.getThresholds(&thresh[0], rec.getWidth() * 2);
+  std::cout << "writing threshold file: " << fname << " " << rec.getWidth()
+            << " " << rec.getHeight() << std::endl;
+  for (size_t i = 0; i < rec.getWidth() * rec.getHeight(); i++) {
+    threshold_file << thresh[2 * i] << " " << thresh[2 * i + 1] << std::endl;
+  }
+}
+
 size_t processOnTimeStamps(
   const std::string & tsFile, rosbag2_cpp::Reader & reader,
   bool syncOnSensorTime, std::unordered_map<std::string, ApproxRecon> * recons)
@@ -377,6 +401,12 @@ size_t process_bag(
       numMessages =
         processOnTimeStamps(timeStampFile, reader, hasSyncCable, &recons);
     }
+  }
+  size_t i = 0;
+  for (const auto & r : recons) {
+    write_count_file("count_" + std::to_string(i) + ".txt", r.second);
+    write_threshold_file("threshold_" + std::to_string(i) + ".txt", r.second);
+    i++;
   }
   return (numMessages);
 }

@@ -164,7 +164,16 @@ private:
       msg->data.resize(msg->height * msg->step);
       simpleReconstructor_.getImage(&(msg->data[0]), msg->step);
       msg->header.stamp = frameTime.rosTime;
+      auto activeMsg = std::make_unique<ImageT>(imageMsgTemplate_);
+      activeMsg->data.resize(activeMsg->height * activeMsg->step);
+      simpleReconstructor_.getActivePixelImage(
+        &(activeMsg->data[0]), activeMsg->step);
+      const auto fr = simpleReconstructor_.getCurrentFillRatio();
+      const auto qs = simpleReconstructor_.getCurrentQueueSize();
+      activeMsg->header.stamp = frameTime.rosTime;
       frameHandler_->frame(frameTime.sensorTime, std::move(msg), topic_);
+      frameHandler_->activePixels(
+        frameTime.sensorTime, std::move(activeMsg), topic_, qs, fr);
       frameTimes_.pop();
     }
   }

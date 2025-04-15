@@ -25,6 +25,14 @@ public:
   virtual void frame(
     uint64_t sensor_time, const ImageConstSharedPtrT & img,
     const std::string & topic) = 0;
+  virtual void activePixels(
+    uint64_t sensor_time, const ImageConstSharedPtrT & img,
+    const std::string & topic)
+  {
+    (void)sensor_time;
+    (void)img;
+    (void)topic;
+  }
   virtual ~FrameHandler() {}
 };
 }  // namespace sync_event_frames

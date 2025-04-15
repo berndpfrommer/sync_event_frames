@@ -118,6 +118,20 @@ public:
     }
   }
 
+  void activePixels(
+    uint64_t sensor_time, const Image::ConstSharedPtr & img,
+    const std::string & topic) override
+  {
+    write<Image>(img, topic + "/pixels", "sensor_msgs/msg/Image");
+    if (writeFrames_) {
+      std::stringstream ss;
+      ss << std::setw(10) << std::setfill('0') << sensor_time / 1000UL;
+      const auto fname = bagName_ + "/frames/pixels_" + ss.str() + ".png";
+      auto cvImg = cv_bridge::toCvShare(img, "mono8");
+      cv::imwrite(fname, cvImg->image);
+    }
+  }
+
   template <typename MsgT>
   void write(
     const typename MsgT::ConstSharedPtr & m, const std::string & topic,

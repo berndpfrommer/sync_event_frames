@@ -120,12 +120,13 @@ public:
 
   void activePixels(
     uint64_t sensor_time, const Image::ConstSharedPtr & img,
-    const std::string & topic) override
+    const std::string & topic, size_t qs, double fr) override
   {
     write<Image>(img, topic + "/pixels", "sensor_msgs/msg/Image");
     if (writeFrames_) {
       std::stringstream ss;
-      ss << std::setw(10) << std::setfill('0') << sensor_time / 1000UL;
+      ss << std::setw(10) << std::setfill('0') << sensor_time / 1000UL << "_"
+         << qs << "_" << std::setprecision(4) << fr;
       const auto fname = bagName_ + "/frames/pixels_" + ss.str() + ".png";
       auto cvImg = cv_bridge::toCvShare(img, "mono8");
       cv::imwrite(fname, cvImg->image);
@@ -357,7 +358,7 @@ size_t process_bag(
   const std::string & timeStampFile, const std::vector<std::string> & inTopics,
   const std::vector<std::string> & outTopics,
   const std::vector<std::string> & frameTopics, int cutoffPeriod,
-  bool hasSyncCable, double fps, bool writePNG)
+  double fillRatio, int tileSize, bool hasSyncCable, double fps, bool writePNG)
 {
   rosbag2_cpp::Reader reader;
   reader.open(inBagName);
@@ -373,8 +374,6 @@ size_t process_bag(
   // set up the reconstruction objects
   std::unordered_map<std::string, ApproxRecon> recons;
   for (size_t i = 0; i < inTopics.size(); i++) {
-    const double fillRatio = 0.6;
-    const int tileSize = 2;
     recons.insert(
       {inTopics[i],
        ApproxRecon(&writer, outTopics[i], cutoffPeriod, fillRatio, tileSize)});

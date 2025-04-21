@@ -31,7 +31,10 @@ void usage()
                " -t event_camera_input_topic [-T event_frame_output_topic]"
                " [-s (if free running + ev cams are hw synced)]"
                " [-x time_stamp_file]"
+               " [-p (write png files)]"
                " [-c frame_camera_input_topic] [-f fps]"
+               " [-r fill_ratio]"
+               " [-S tile_size]"
                " [-C cutoff_period]"
             << std::endl;
 }
@@ -46,10 +49,12 @@ int main(int argc, char ** argv)
   std::vector<std::string> outTopics;
   std::vector<std::string> frameTopics;
   int cutoffPeriod(30);
+  double fillRatio(0.5);
   bool hasSyncCable{false};
   double fps(-1);
   bool writePNG{false};
-  while ((opt = getopt(argc, argv, "i:o:t:T:f:C:c:x:shp")) != -1) {
+  int tileSize(2);
+  while ((opt = getopt(argc, argv, "i:o:t:T:f:C:c:x:r:S:shp")) != -1) {
     switch (opt) {
       case 'i':
         inBagName = optarg;
@@ -75,8 +80,14 @@ int main(int argc, char ** argv)
       case 'C':
         cutoffPeriod = atoi(optarg);
         break;
+      case 'r':
+        fillRatio = atof(optarg);
+        break;
       case 's':
         hasSyncCable = true;
+        break;
+      case 'S':
+        tileSize = atoi(optarg);
         break;
       case 'p':
         writePNG = true;
@@ -142,7 +153,7 @@ int main(int argc, char ** argv)
 
   size_t numMessages = process_bag(
     inBagName, outBagName, timeStampFile, inTopics, outTopics, frameTopics,
-    cutoffPeriod, hasSyncCable, fps, writePNG);
+    cutoffPeriod, fillRatio, tileSize, hasSyncCable, fps, writePNG);
   auto final = std::chrono::high_resolution_clock::now();
   auto dt =
     std::chrono::duration_cast<std::chrono::microseconds>(final - start);

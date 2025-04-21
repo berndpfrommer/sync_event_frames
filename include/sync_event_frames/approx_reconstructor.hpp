@@ -47,7 +47,7 @@ public:
   using EventPacket = EventPacketT;
   explicit ApproxReconstructor(
     FrameHandler<ImageConstPtrT> * fh, const std::string & topic,
-    int cutoffNumEvents = 30, double fillRatio = 0.6, int tileSize = 2)
+    int cutoffNumEvents = 30, double fillRatio = 0.5, int tileSize = 2)
   : frameHandler_(fh),
     topic_(topic),
     cutoffNumEvents_(cutoffNumEvents),
@@ -168,8 +168,8 @@ private:
       activeMsg->data.resize(activeMsg->height * activeMsg->step);
       simpleReconstructor_.getActivePixelImage(
         &(activeMsg->data[0]), activeMsg->step);
-      const auto fr = simpleReconstructor_.getCurrentFillRatio();
-      const auto qs = simpleReconstructor_.getCurrentQueueSize();
+      const double fr = simpleReconstructor_.getCurrentFillRatio();
+      const size_t qs = simpleReconstructor_.getCurrentQueueSize();
       activeMsg->header.stamp = frameTime.rosTime;
       frameHandler_->frame(frameTime.sensorTime, std::move(msg), topic_);
       frameHandler_->activePixels(

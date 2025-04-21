@@ -27,11 +27,13 @@ public:
     const std::string & topic) = 0;
   virtual void activePixels(
     uint64_t sensor_time, const ImageConstSharedPtrT & img,
-    const std::string & topic)
+    const std::string & topic, size_t queue_size, double fill_ratio)
   {
     (void)sensor_time;
     (void)img;
     (void)topic;
+    (void)queue_size;
+    (void)fill_ratio;
   }
   virtual ~FrameHandler() {}
 };

@@ -101,14 +101,15 @@ public:
   {
     write<Image>(img, topic, "sensor_msgs/msg/Image");
     if (writeFrames_) {
-#if 1
-      std::cout << "frame " << numFrames_ << " ros time: "
-                << rclcpp::Time(img->header.stamp).nanoseconds()
-                << " sensor time: " << sensor_time << std::endl;
-#endif
       std::stringstream ss;
       ss << std::setw(10) << std::setfill('0') << sensor_time / 1000UL;
       const auto fname = bagName_ + "/frames/frame_" + ss.str() + ".png";
+#if 1
+      std::cout << "frame " << numFrames_ << " ros time: "
+                << rclcpp::Time(img->header.stamp).nanoseconds()
+                << " sensor time: " << sensor_time
+                << std::endl;  //" " << fname << std::endl;
+#endif
       auto cvImg = cv_bridge::toCvShare(img, "mono8");
       cv::imwrite(fname, cvImg->image);
     }

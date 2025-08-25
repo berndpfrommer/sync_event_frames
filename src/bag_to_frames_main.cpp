@@ -21,7 +21,7 @@
 #ifdef USING_ROS_1
 #include "bag_to_frames_ros1.hpp"
 #else
-#include "bag_to_frames_ros2.hpp"
+#include <sync_event_frames/bag_to_frames.hpp>
 #endif
 
 void usage()
@@ -48,7 +48,7 @@ int main(int argc, char ** argv)
   std::vector<std::string> inTopics;
   std::vector<std::string> outTopics;
   std::vector<std::string> frameTopics;
-  int cutoffPeriod(30);
+  int cutoffPeriod(40);
   double fillRatio(0.5);
   bool hasSyncCable{false};
   double fps(-1);
@@ -150,10 +150,28 @@ int main(int argc, char ** argv)
               << std::endl;
     hasSyncCable = true;
   }
+  size_t numMessages = 0;
+  switch (tileSize) {
+    case 2:
+      numMessages = sync_event_frames::BagToFrames<2>::process_bag(
+        inBagName, outBagName, timeStampFile, inTopics, outTopics, frameTopics,
+        cutoffPeriod, fillRatio, hasSyncCable, fps, writePNG);
+      break;
+    case 3:
+      numMessages = sync_event_frames::BagToFrames<3>::process_bag(
+        inBagName, outBagName, timeStampFile, inTopics, outTopics, frameTopics,
+        cutoffPeriod, fillRatio, hasSyncCable, fps, writePNG);
+      break;
+    case 4:
+      numMessages = sync_event_frames::BagToFrames<3>::process_bag(
+        inBagName, outBagName, timeStampFile, inTopics, outTopics, frameTopics,
+        cutoffPeriod, fillRatio, hasSyncCable, fps, writePNG);
+      break;
+    default:
+      std::cerr << "tile size not implemented!" << std::endl;
+      throw std::runtime_error("invalid tile size!");
+  }
 
-  size_t numMessages = process_bag(
-    inBagName, outBagName, timeStampFile, inTopics, outTopics, frameTopics,
-    cutoffPeriod, fillRatio, tileSize, hasSyncCable, fps, writePNG);
   auto final = std::chrono::high_resolution_clock::now();
   auto dt =
     std::chrono::duration_cast<std::chrono::microseconds>(final - start);

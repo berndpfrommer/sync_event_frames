@@ -33,7 +33,7 @@ namespace sync_event_frames
 {
 template <
   typename EventPacketT, typename EventPacketConstSharedPtrT, typename ImageT,
-  typename ImageConstPtrT, typename RosTimeT>
+  typename ImageConstPtrT, typename RosTimeT, int tile_size>
 class ApproxReconstructor : public event_camera_codecs::EventProcessor
 {
 public:
@@ -47,12 +47,11 @@ public:
   using EventPacket = EventPacketT;
   explicit ApproxReconstructor(
     FrameHandler<ImageConstPtrT> * fh, const std::string & topic,
-    int cutoffNumEvents = 30, double fillRatio = 0.5, int tileSize = 2)
+    int cutoffNumEvents = 30, double fillRatio = 0.5)
   : frameHandler_(fh),
     topic_(topic),
     cutoffNumEvents_(cutoffNumEvents),
-    fillRatio_(fillRatio),
-    tileSize_(tileSize)
+    fillRatio_(fillRatio)
   {
     imageMsgTemplate_.height = 0;
   }
@@ -61,17 +60,29 @@ public:
   inline void eventCD(
     uint64_t t, uint16_t ex, uint16_t ey, uint8_t polarity) override
   {
+    numberOfEvents_++;
     if (__builtin_expect(updateROStoSensorTimeOffset_, false)) {
-      auto msg = bufferedMessages_.front();
+      const auto & msg = bufferedMessages_.front();
       updateROSTimeOffset(
         ros_compat::to_nanoseconds(RosTimeT(msg->header.stamp)), t);
     }
+// #define TEST_WITHOUT_RECONSTRUCTING
+#ifdef TEST_WITHOUT_RECONSTRUCTING
+    (void)ex;
+    (void)t;
+    (void)ey;
+    (void)polarity;
+#else
     simpleReconstructor_.event(t, ex, ey, polarity);
+#endif
   }
   void eventExtTrigger(uint64_t, uint8_t, uint8_t) override {}
   void finished() override {}
   void rawData(const char *, size_t) override {}
   // --------- end of inherited from EventProcessor
+
+  const auto & getDecodeTime() const { return decodeTime_; }
+  const auto & getNumberOfEvents() const { return numberOfEvents_; }
 
   void addFrameTime(uint64_t sensorTime, const RosTimeT t)
   {
@@ -98,8 +109,7 @@ public:
       imageMsgTemplate_.step = imageMsgTemplate_.width;
       simpleReconstructor_.initialize(
         msg->width, msg->height,
-        static_cast<uint32_t>(std::abs(cutoffNumEvents_)), tileSize_,
-        fillRatio_);
+        static_cast<uint32_t>(std::abs(cutoffNumEvents_)), fillRatio_);
       decoder_ = decoderFactory_.getInstance(*msg);
       if (!decoder_) {
         std::cerr << "invalid encoding: " << msg->encoding << std::endl;
@@ -131,8 +141,12 @@ public:
       uint64_t nextTime{0};
       bool messageExhausted(false);
       while (!frameTimes_.empty() && !messageExhausted) {
+        const auto t0 = std::chrono::high_resolution_clock::now();
         messageExhausted = !decoder_->decodeUntil(
           *msg, this, frameTimes_.front().sensorTime, &nextTime);
+        decodeTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         std::chrono::high_resolution_clock::now() - t0)
+                         .count();
         emitFramesOlderThan(nextTime);
       }
 
@@ -184,7 +198,6 @@ private:
   ImageT imageMsgTemplate_;
   int cutoffNumEvents_{0};
   double fillRatio_{0};
-  int tileSize_{0};
   TimeOffset timeOffset_;
   bool updateROStoSensorTimeOffset_{true};
   bool syncOnSensorTime_{false};
@@ -192,9 +205,12 @@ private:
     nullptr};
   event_camera_codecs::DecoderFactory<EventPacket, ApproxReconstructor>
     decoderFactory_;
-  simple_image_recon_lib::SimpleImageReconstructor simpleReconstructor_;
+  simple_image_recon_lib::SimpleImageReconstructor<tile_size>
+    simpleReconstructor_;
   std::queue<FrameTime> frameTimes_;
   std::queue<EventPacketConstSharedPtrT> bufferedMessages_;
+  uint64_t decodeTime_{0};
+  uint64_t numberOfEvents_{0};
 };
 }  // namespace sync_event_frames
 #endif  // SYNC_EVENT_FRAMES__APPROX_RECONSTRUCTOR_HPP_
